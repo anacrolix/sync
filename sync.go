@@ -1,21 +1,29 @@
 package sync
 
 import (
-	"container/list"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
 
+var enabled = false
+
 var (
-	lockHolders  *list.List
-	lockBlockers *list.List
-	mu           sync.Mutex
+	lockHolders  *pprof.Profile
+	lockBlockers *pprof.Profile
+	// mu           sync.Mutex
 )
 
 func init() {
-	lockHolders = list.New()
-	lockBlockers = list.New()
+	if os.Getenv("PPROF_SYNC") != "" {
+		enabled = true
+	}
+	if enabled {
+		lockHolders = pprof.NewProfile("lockHolders")
+		lockBlockers = pprof.NewProfile("lockBlockers")
+	}
 }
 
 type lockAction struct {
@@ -32,17 +40,7 @@ func stack() string {
 
 type Mutex struct {
 	mu   sync.Mutex
-	hold *list.Element
-}
-
-func (m *Mutex) addAction(l *list.List) *list.Element {
-	mu.Lock()
-	defer mu.Unlock()
-	return l.PushBack(lockAction{
-		time.Now(),
-		m,
-		stack(),
-	})
+	hold *int
 }
 
 func (m *Mutex) newAction() *lockAction {
@@ -52,27 +50,44 @@ func (m *Mutex) newAction() *lockAction {
 		stack(),
 	}
 }
-
 func (m *Mutex) Lock() {
-	a := m.newAction()
-	mu.Lock()
-	e := lockBlockers.PushBack(a)
-	mu.Unlock()
+	if !enabled {
+		m.mu.Lock()
+		return
+	}
+	v := new(int)
+	lockBlockers.Add(v, 0)
 	m.mu.Lock()
-	mu.Lock()
-	lockBlockers.Remove(e)
-	a.Time = time.Now()
-	m.hold = lockHolders.PushBack(a)
-	mu.Unlock()
+	lockBlockers.Remove(v)
+	m.hold = v
+	lockHolders.Add(v, 0)
 }
-
 func (m *Mutex) Unlock() {
-	mu.Lock()
+	if enabled {
+		lockHolders.Remove(m.hold)
+	}
 	m.mu.Unlock()
-	lockHolders.Remove(m.hold)
-	mu.Unlock()
 }
 
 type WaitGroup struct {
 	sync.WaitGroup
+}
+
+type Cond struct {
+	sync.Cond
+}
+
+// This RWMutex's RLock and RUnlock methods don't allow shared reading because
+// there's no way to determine what goroutine has stopped holding the read
+// lock when RUnlock is called. So for debugging purposes, it's just like
+// Mutex.
+type RWMutex struct {
+	Mutex
+}
+
+func (me *RWMutex) RLock() {
+	me.Lock()
+}
+func (me *RWMutex) RUnlock() {
+	me.Unlock()
 }

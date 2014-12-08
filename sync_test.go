@@ -21,3 +21,10 @@ func TestUnlockUnlocked(t *testing.T) {
 	}()
 	mu.Unlock()
 }
+
+func TestPointerCompare(t *testing.T) {
+	a, b := new(int), new(int)
+	if a == b {
+		t.FailNow()
+	}
+}
