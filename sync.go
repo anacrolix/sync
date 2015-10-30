@@ -21,6 +21,8 @@ import (
 	"sync"
 	"text/tabwriter"
 	"time"
+
+	"github.com/anacrolix/missinggo"
 )
 
 var (
@@ -73,21 +75,8 @@ func PrintLockTimes(w io.Writer) {
 	defer tw.Flush()
 	w = tw
 	for _, elem := range lockTimes {
-		stack, held := elem.stack, elem.held
-		fmt.Fprintf(w, "%s\n", held)
-		for _, pc := range stack {
-			if pc == 0 {
-				break
-			}
-			pc--
-			f := runtime.FuncForPC(pc)
-			if f.Name() == "runtime.goexit" {
-				continue
-			}
-			file, line := f.FileLine(pc)
-			fmt.Fprintf(w, "# %s:\t%s:%d\n", f.Name(), file, line)
-		}
-		fmt.Fprintf(w, "\n")
+		fmt.Fprintf(w, "%s\n", elem.held)
+		missinggo.WriteStack(w, elem.stack[:])
 	}
 }
 
