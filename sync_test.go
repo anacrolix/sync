@@ -2,7 +2,6 @@ package sync
 
 import (
 	"bytes"
-	"sync"
 	"testing"
 )
 
@@ -20,17 +19,6 @@ func TestRWMutex(t *testing.T) {
 	var mu RWMutex
 	mu.RLock()
 	mu.RUnlock()
-}
-
-func TestUnlockUnlocked(t *testing.T) {
-	var mu sync.Mutex
-	defer func() {
-		err := recover()
-		if err == nil {
-			t.Fatal("should have panicked")
-		}
-	}()
-	mu.Unlock()
 }
 
 func TestPointerCompare(t *testing.T) {
