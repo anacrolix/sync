@@ -139,10 +139,7 @@ func (m *Mutex) Unlock() {
 	m.mu.Unlock()
 }
 
-type WaitGroup struct {
-	sync.WaitGroup
-}
-
-type Cond struct {
-	sync.Cond
-}
+type (
+	WaitGroup = sync.WaitGroup
+	Cond      = sync.Cond
+)
