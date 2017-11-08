@@ -123,6 +123,7 @@ func (m *Mutex) Lock() {
 	m.entries = runtime.Callers(2, m.stack[:])
 	m.start = time.Now()
 }
+
 func (m *Mutex) Unlock() {
 	if enabled {
 		lockHeld := time.Since(m.start)
