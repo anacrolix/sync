@@ -18,6 +18,7 @@ package sync
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"runtime"
@@ -47,12 +48,18 @@ var (
 
 type (
 	lockStats struct {
-		maxTime time.Duration
-		count   lockCount
+		min   time.Duration
+		max   time.Duration
+		total time.Duration
+		count lockCount
 	}
 	lockStackKey = [32]uintptr
 	lockCount    = int64
 )
+
+func (me *lockStats) MeanTime() time.Duration {
+	return me.total / time.Duration(me.count)
+}
 
 type stackLockStats struct {
 	stack lockStackKey
@@ -66,7 +73,7 @@ func sortedLockTimes() (ret []stackLockStats) {
 	}
 	lockStatsMu.Unlock()
 	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].maxTime > ret[j].maxTime
+		return ret[i].total > ret[j].total
 	})
 	return
 }
@@ -79,7 +86,7 @@ func PrintLockTimes(w io.Writer) {
 	defer tw.Flush()
 	w = tw
 	for _, elem := range lockTimes {
-		fmt.Fprintf(w, "%s * %d\n", elem.maxTime, elem.count)
+		fmt.Fprintf(w, "%s (%s * %d [%s, %s])\n", elem.total, elem.MeanTime(), elem.count, elem.min, elem.max)
 		missinggo.WriteStack(w, elem.stack[:])
 	}
 }
@@ -133,15 +140,24 @@ func (m *Mutex) Unlock() {
 		d := time.Since(m.start)
 		var key [32]uintptr
 		copy(key[:], m.stack[:m.entries])
-		lockStatsMu.Lock()
-		v := lockStatsByStack[key]
-		if d > v.maxTime {
-			v.maxTime = d
-		}
-		v.count++
-		lockStatsByStack[key] = v
-		lockStatsMu.Unlock()
-		lockHolders.Remove(m.hold)
+		go func() {
+			lockStatsMu.Lock()
+			defer lockStatsMu.Unlock()
+			v, ok := lockStatsByStack[key]
+			if !ok {
+				v.min = math.MaxInt64
+			}
+			if d > v.max {
+				v.max = d
+			}
+			if d < v.min {
+				v.min = d
+			}
+			v.total += d
+			v.count++
+			lockStatsByStack[key] = v
+		}()
+		go lockHolders.Remove(m.hold)
 	}
 	m.mu.Unlock()
 }
