@@ -18,15 +18,11 @@ package sync
 import (
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"os"
-	"runtime"
 	"runtime/pprof"
-	"sort"
 	"sync"
 	"text/tabwriter"
-	"time"
 
 	"github.com/anacrolix/missinggo"
 )
@@ -40,43 +36,7 @@ var (
 	lockHolders *pprof.Profile
 	// Those blocked on acquiring a lock.
 	lockBlockers *pprof.Profile
-
-	// Stats on lock usage by call graph.
-	lockStatsMu      sync.Mutex
-	lockStatsByStack map[lockStackKey]lockStats
 )
-
-type (
-	lockStats struct {
-		min   time.Duration
-		max   time.Duration
-		total time.Duration
-		count lockCount
-	}
-	lockStackKey = [32]uintptr
-	lockCount    = int64
-)
-
-func (me *lockStats) MeanTime() time.Duration {
-	return me.total / time.Duration(me.count)
-}
-
-type stackLockStats struct {
-	stack lockStackKey
-	lockStats
-}
-
-func sortedLockTimes() (ret []stackLockStats) {
-	lockStatsMu.Lock()
-	for stack, stats := range lockStatsByStack {
-		ret = append(ret, stackLockStats{stack, stats})
-	}
-	lockStatsMu.Unlock()
-	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].total > ret[j].total
-	})
-	return
-}
 
 // Writes out the longest time a Mutex remains locked for each stack trace
 // that locks a Mutex.
@@ -110,56 +70,6 @@ func init() {
 	if os.Getenv("PPROF_SYNC") != "" {
 		Enable()
 	}
-}
-
-type Mutex struct {
-	mu      sync.Mutex
-	hold    *int        // Unique value for passing to pprof.
-	stack   [32]uintptr // The stack for the current holder.
-	start   time.Time   // When the lock was obtained.
-	entries int         // Number of entries returned from runtime.Callers.
-}
-
-func (m *Mutex) Lock() {
-	if !enabled {
-		m.mu.Lock()
-		return
-	}
-	v := new(int)
-	lockBlockers.Add(v, 0)
-	m.mu.Lock()
-	lockBlockers.Remove(v)
-	m.hold = v
-	lockHolders.Add(v, 0)
-	m.entries = runtime.Callers(2, m.stack[:])
-	m.start = time.Now()
-}
-
-func (m *Mutex) Unlock() {
-	if enabled {
-		d := time.Since(m.start)
-		var key [32]uintptr
-		copy(key[:], m.stack[:m.entries])
-		go func() {
-			lockStatsMu.Lock()
-			defer lockStatsMu.Unlock()
-			v, ok := lockStatsByStack[key]
-			if !ok {
-				v.min = math.MaxInt64
-			}
-			if d > v.max {
-				v.max = d
-			}
-			if d < v.min {
-				v.min = d
-			}
-			v.total += d
-			v.count++
-			lockStatsByStack[key] = v
-		}()
-		go lockHolders.Remove(m.hold)
-	}
-	m.mu.Unlock()
 }
 
 type (
