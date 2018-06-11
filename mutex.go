@@ -16,22 +16,24 @@ type Mutex struct {
 }
 
 func (m *Mutex) Lock() {
-	if !enabled {
+	if contentionOn {
+		v := new(int)
+		lockBlockers.Add(v, 0)
 		m.mu.Lock()
-		return
+		lockBlockers.Remove(v)
+		m.hold = v
+		lockHolders.Add(v, 0)
+	} else {
+		m.mu.Lock()
 	}
-	v := new(int)
-	lockBlockers.Add(v, 0)
-	m.mu.Lock()
-	lockBlockers.Remove(v)
-	m.hold = v
-	lockHolders.Add(v, 0)
-	m.entries = runtime.Callers(2, m.stack[:])
-	m.start = time.Now()
+	if lockTimesOn {
+		m.entries = runtime.Callers(2, m.stack[:])
+		m.start = time.Now()
+	}
 }
 
 func (m *Mutex) Unlock() {
-	if enabled {
+	if lockTimesOn {
 		d := time.Since(m.start)
 		var key [32]uintptr
 		copy(key[:], m.stack[:m.entries])
@@ -52,6 +54,8 @@ func (m *Mutex) Unlock() {
 			v.count++
 			lockStatsByStack[key] = v
 		}()
+	}
+	if contentionOn {
 		go lockHolders.Remove(m.hold)
 	}
 	m.mu.Unlock()

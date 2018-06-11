@@ -12,7 +12,7 @@ type RWMutex struct {
 }
 
 func (me *RWMutex) Lock() {
-	if enabled {
+	if noSharedLocking {
 		me.ins.Lock()
 	} else {
 		me.rw.Lock()
@@ -20,7 +20,7 @@ func (me *RWMutex) Lock() {
 }
 
 func (me *RWMutex) Unlock() {
-	if enabled {
+	if noSharedLocking {
 		me.ins.Unlock()
 	} else {
 		me.rw.Unlock()
@@ -28,14 +28,14 @@ func (me *RWMutex) Unlock() {
 }
 
 func (me *RWMutex) RLock() {
-	if enabled {
+	if noSharedLocking {
 		me.ins.Lock()
 	} else {
 		me.rw.RLock()
 	}
 }
 func (me *RWMutex) RUnlock() {
-	if enabled {
+	if noSharedLocking {
 		me.ins.Unlock()
 	} else {
 		me.rw.RUnlock()

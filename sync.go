@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"runtime/pprof"
+	"strings"
 	"sync"
 	"text/tabwriter"
 
@@ -30,8 +31,10 @@ import (
 var (
 	// Protects initialization and enabling of the package.
 	enableMu sync.Mutex
-	// Whether any of this package is to be active.
-	enabled = false
+	// Whether shared locks must be handled as exclusive locks.
+	noSharedLocking = false
+	contentionOn    = false
+	lockTimesOn     = false
 	// Current lock holders.
 	lockHolders *pprof.Profile
 	// Those blocked on acquiring a lock.
@@ -52,22 +55,38 @@ func PrintLockTimes(w io.Writer) {
 }
 
 func Enable() {
-	enableMu.Lock()
-	defer enableMu.Unlock()
-	if enabled {
-		return
-	}
-	lockStatsByStack = make(map[lockStackKey]lockStats)
+	EnableContention()
+	EnableLockTimes()
+}
+
+func EnableContention() {
 	lockHolders = pprof.NewProfile("lockHolders")
 	lockBlockers = pprof.NewProfile("lockBlockers")
+	noSharedLocking = true
+	contentionOn = true
+}
+
+func EnableLockTimes() {
+	lockStatsByStack = make(map[lockStackKey]lockStats)
 	http.DefaultServeMux.HandleFunc("/debug/lockTimes", func(w http.ResponseWriter, r *http.Request) {
 		PrintLockTimes(w)
 	})
-	enabled = true
+	noSharedLocking = true
+	lockTimesOn = true
 }
 
 func init() {
-	if os.Getenv("PPROF_SYNC") != "" {
+	env := os.Getenv("PPROF_SYNC")
+	all := true
+	if strings.Contains(env, "times") {
+		EnableLockTimes()
+		all = false
+	}
+	if strings.Contains(env, "contention") {
+		EnableContention()
+		all = false
+	}
+	if all && env != "" {
 		Enable()
 	}
 }
