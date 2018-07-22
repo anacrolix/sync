@@ -49,7 +49,7 @@ func PrintLockTimes(w io.Writer) {
 	defer tw.Flush()
 	w = tw
 	for _, elem := range lockTimes {
-		fmt.Fprintf(w, "%s (%s * %d [%s, %s])\n", elem.total, elem.MeanTime(), elem.count, elem.min, elem.max)
+		fmt.Fprintf(w, "%s (%s * %d [%s, %s])\n", elem.Total, elem.MeanTime(), elem.Count, elem.Min, elem.Max)
 		missinggo.WriteStack(w, elem.stack[:])
 	}
 }

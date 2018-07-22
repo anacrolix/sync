@@ -1,7 +1,6 @@
 package sync
 
 import (
-	"math"
 	"runtime"
 	"sync"
 	"time"
@@ -42,16 +41,9 @@ func (m *Mutex) Unlock() {
 			defer lockStatsMu.Unlock()
 			v, ok := lockStatsByStack[key]
 			if !ok {
-				v.min = math.MaxInt64
+				v.Init()
 			}
-			if d > v.max {
-				v.max = d
-			}
-			if d < v.min {
-				v.min = d
-			}
-			v.total += d
-			v.count++
+			v.Add(d)
 			lockStatsByStack[key] = v
 		}()
 	}

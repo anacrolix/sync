@@ -3,7 +3,8 @@ package sync
 import (
 	"sort"
 	"sync"
-	"time"
+
+	"github.com/anacrolix/missinggo/perf"
 )
 
 var (
@@ -13,19 +14,10 @@ var (
 )
 
 type (
-	lockStats struct {
-		min   time.Duration
-		max   time.Duration
-		total time.Duration
-		count lockCount
-	}
+	lockStats    = perf.Event
 	lockStackKey = [32]uintptr
 	lockCount    = int64
 )
-
-func (me *lockStats) MeanTime() time.Duration {
-	return me.total / time.Duration(me.count)
-}
 
 type stackLockStats struct {
 	stack lockStackKey
@@ -39,7 +31,7 @@ func sortedLockTimes() (ret []stackLockStats) {
 	}
 	lockStatsMu.Unlock()
 	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].total > ret[j].total
+		return ret[i].Total > ret[j].Total
 	})
 	return
 }
