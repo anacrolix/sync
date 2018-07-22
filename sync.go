@@ -90,8 +90,3 @@ func init() {
 		Enable()
 	}
 }
-
-type (
-	WaitGroup = sync.WaitGroup
-	Cond      = sync.Cond
-)
