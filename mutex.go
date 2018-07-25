@@ -36,19 +36,17 @@ func (m *Mutex) Unlock() {
 		d := time.Since(m.start)
 		var key [32]uintptr
 		copy(key[:], m.stack[:m.entries])
-		go func() {
-			lockStatsMu.Lock()
-			defer lockStatsMu.Unlock()
-			v, ok := lockStatsByStack[key]
-			if !ok {
-				v.Init()
-			}
-			v.Add(d)
-			lockStatsByStack[key] = v
-		}()
+		lockStatsMu.Lock()
+		v, ok := lockStatsByStack[key]
+		if !ok {
+			v.Init()
+		}
+		v.Add(d)
+		lockStatsByStack[key] = v
+		lockStatsMu.Unlock()
 	}
 	if contentionOn {
-		go lockHolders.Remove(m.hold)
+		lockHolders.Remove(m.hold)
 	}
 	m.mu.Unlock()
 }
