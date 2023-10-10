@@ -1,5 +1,5 @@
-//go:build 1.21
-// +build 1.21
+//go:build go1.21
+// +build go1.21
 
 package sync
 
