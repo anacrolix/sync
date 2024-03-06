@@ -16,7 +16,6 @@ var (
 type (
 	lockStats    = perf.Event
 	lockStackKey = [32]uintptr
-	lockCount    = int64
 )
 
 type stackLockStats struct {
