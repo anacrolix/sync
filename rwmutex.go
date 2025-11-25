@@ -1,3 +1,5 @@
+//go:build !disable_pprof_sync
+
 package sync
 
 import "sync"

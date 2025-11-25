@@ -1,3 +1,5 @@
+//go:build !disable_pprof_sync
+
 package sync
 
 import (
@@ -21,8 +23,6 @@ type lockTimes struct {
 	start   time.Time                  // When the lock was obtained.
 	entries int                        // Number of entries returned from runtime.Callers.
 }
-
-type callerArray = [32]uintptr
 
 func (m *Mutex) Lock() {
 	if contentionOn {
