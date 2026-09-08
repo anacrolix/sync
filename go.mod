@@ -1,6 +1,6 @@
 module github.com/anacrolix/sync
 
-go 1.22
+go 1.25
 
 require (
 	github.com/anacrolix/envpprof v1.4.1-0.20251201125402-e8b52d50f714
